@@ -34,3 +34,13 @@ def get_users():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+from flask import request
+
+@app.route('/vapi-webhook', methods=['POST'])
+def vapi_webhook():
+    data = request.json
+    # Process data from Vapi (e.g., user_name, goal, event_time)
+    print("Vapi Data:", data)
+    return jsonify({"message": "Data received!"}), 200
+
