@@ -40,7 +40,33 @@ from flask import request
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
     data = request.json
-    # Process data from Vapi (e.g., user_name, goal, event_time)
-    print("Vapi Data:", data)
-    return jsonify({"message": "Data received!"}), 200
+
+    # Map and rename fields for MongoDB compatibility
+    if 'user_name' in data:
+        data['name'] = data.pop('user_name')  # Rename user_name to name
+    
+    if 'goal_context' in data:
+        if 'networking_goals' not in data:
+            data['networking_goals'] = []  # Ensure the field exists
+        data['networking_goals'].append({"goal": data.pop('goal_context'), "date": "2025-01-27"})  # Map goal_context into networking_goals
+    
+    # Optional: Check and create other fields if not present
+    if 'connection_type' not in data:
+        data['connection_type'] = None  # Default value if missing
+
+    if 'meeting_time' not in data:
+        data['meeting_time'] = None  # Default value if missing
+    
+    if 'requested_to' not in data:
+        data['requested_to'] = None  # Default value if missing
+
+    if 'context' not in data:
+        data['context'] = None  # Default value if missing
+
+    # Save the updated data to MongoDB
+    db['Users'].insert_one(data)
+
+    print("Vapi Data:", data)  # Debugging log
+    return jsonify({"message": "Data received successfully!"}), 200
+
 
