@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # MongoDB connection
 client = MongoClient(os.environ.get("MONGO_URI"))  # Use an environment variable for MongoDB URI
-db = client['nexa_db']
+db = client['Nexa']
 
 @app.route('/')
 def home():
