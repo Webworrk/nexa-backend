@@ -75,7 +75,7 @@ def vapi_webhook():
             text = msg.get("message", "")
 
             # Extract Date Separately (e.g., "January 29th 2025")
-            date_match = re.search(r'(\d{1,2})(?:st|nd|rd|th)?\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})', text, re.IGNORECASE)
+            date_match = re.search(r'(\d{1,2})[a-z]{2}?\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})', text, re.IGNORECASE)
             if date_match:
                 day, month_name, year = date_match.groups()
                 month_number = datetime.strptime(month_name, "%B").month  # Convert month name to number
@@ -96,8 +96,8 @@ def vapi_webhook():
             "profession": message.get("profession", ""),
             "goal_context": analysis.get("summary", ""),
             "connection_type": message.get("connection_type", ""),
-            "meeting_date": meeting_date,  # Date now correctly stored
-            "meeting_time": meeting_time,  # Time now correctly stored
+            "meeting_date": meeting_date if meeting_date else "Not Provided",
+            "meeting_time": meeting_time if meeting_time else "Not Provided",
             "requested_to": message.get("requested_to", "Rahul8906"),
             "context": "Vapi Webhook Data Processing"
         }
