@@ -67,24 +67,25 @@ def vapi_webhook():
         artifact = message.get("artifact", {})
         messages = artifact.get("messages", [])
 
-        # Extract and format meeting date and time
+        # Initialize variables
         meeting_date = None
         meeting_time = None
-        
+
         for msg in messages:
             text = msg.get("message", "")
 
-            # Extract Date Separately (e.g., "January 29th 2025")
-            date_match = re.search(r'(\d{1,2})[a-z]{2}?\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})', text, re.IGNORECASE)
-            if date_match:
-                day, month_name, year = date_match.groups()
+            # ✅ Extract Date and Time from Message
+            date_time_match = re.search(
+                r'(\b\d{1,2}\b)\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s*(\d{4})\s*at\s*(\d{1,2}):(\d{2})\s*(AM|PM)',
+                text, re.IGNORECASE
+            )
+
+            if date_time_match:
+                day, month_name, year, hour, minute, am_pm = date_time_match.groups()
+                
+                # Convert to required formats
                 month_number = datetime.strptime(month_name, "%B").month  # Convert month name to number
                 meeting_date = f"{int(day):02d}-{int(month_number):02d}-{year}"  # Format: DD-MM-YYYY
-
-            # Extract Time Separately (e.g., "4:00 PM")
-            time_match = re.search(r'(\d{1,2}):(\d{2})\s?(AM|PM)', text, re.IGNORECASE)
-            if time_match:
-                hour, minute, am_pm = time_match.groups()
                 meeting_time = f"{hour}:{minute} {am_pm.upper()}"  # Format: HH:MM AM/PM
 
         # Store extracted data
