@@ -74,8 +74,8 @@ def vapi_webhook():
             text = msg.get("message", "")
 
             # Extract Date (e.g., "January 29th 2025")
-            date_match = re.search(r'\b(\d{1,2})(?:st|nd|rd|th)?\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})\b', text, re.IGNORECASE)
-            time_match = re.search(r'\b(\d{1,2}):(\d{2})\s?(AM|PM)\b', text, re.IGNORECASE)
+            date_match = re.search(r'(\d{1,2})(?:st|nd|rd|th)?\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})', text, re.IGNORECASE)
+            time_match = re.search(r'(\d{1,2}):(\d{2})\s?(AM|PM)', text, re.IGNORECASE)
 
             if date_match:
                 day, month_name, year = date_match.groups()
