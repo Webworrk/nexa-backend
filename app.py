@@ -95,7 +95,7 @@ def vapi_webhook():
             "connection_type": message.get("connection_type", ""),
             "meeting_date": meeting_date,
             "meeting_time": meeting_time,
-            "requested_to": message.get("requested_to", "Not Provided"),
+            "requested_to": message.get("requested_to") if "requested_to" in message else "Unknown",
             "context": "Vapi Webhook Data Processing"
         }
 
