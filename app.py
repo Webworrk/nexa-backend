@@ -2,8 +2,6 @@ from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import os
 import traceback
-import re
-from datetime import datetime
 
 app = Flask(__name__)
 
@@ -52,6 +50,27 @@ def get_users():
         print("Error:", str(e))
         return jsonify({"error": "Failed to fetch users"}), 500
 
+# Find match from the database
+
+def find_match(goal_context):
+    """
+    Searches the database for relevant connections based on user's networking goal.
+    """
+    if not goal_context:
+        return "No specific networking goal found."
+
+    print(f"🔍 Searching for relevant connections based on: {goal_context}")
+
+    match = db.webhooks.find_one(
+        {"goal_context": {"$regex": goal_context, "$options": "i"}},
+        {"user_name": 1, "profession": 1, "email": 1, "_id": 0}
+    )
+
+    if match:
+        return f"I found {match['user_name']}, a {match['profession']}. Would you like me to set up a meeting?"
+    else:
+        return "I don't have a direct connection for this right now, but I'll keep looking and notify you once I find someone."
+
 # Webhook for VAPI
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
@@ -73,13 +92,16 @@ def vapi_webhook():
         meeting_date = None
         for msg in messages:
             text = msg.get("message", "")
-            date_match = re.search(r'\b(\d{2})[-/](\d{2})[-/](\d{4})\b', text)
-            time_match = re.search(r'\b(\d{1,2}):(\d{2})\s?(AM|PM)\b', text, re.IGNORECASE)
-            
-            if date_match:
-                meeting_date = f"{date_match.group(2)}-{date_match.group(1)}-{date_match.group(3)}"  # Format: DD-MM-YYYY
-            if time_match:
-                meeting_time = f"{time_match.group(1)}:{time_match.group(2)} {time_match.group(3).upper()}"  # Format: HH:MM AM/PM
+            if any(t in text for t in ["AM", "PM"]):
+                meeting_time = text
+            if "2025" in text:
+                meeting_date = text
+
+        # Format meeting date and time
+        if meeting_date:
+            meeting_date = "-".join(meeting_date.split("-"))  # Ensure DD-MM-YYYY format
+        if meeting_time:
+            meeting_time = meeting_time.replace(".", ":")  # Ensure HH:MM AM/PM format
 
         extracted_data = {
             "user_name": message.get("user_name", "Unknown"),
@@ -97,11 +119,26 @@ def vapi_webhook():
 
         print("📌 Extracted Data:", extracted_data)
 
-        # Insert data into MongoDB
-        result = db.webhooks.insert_one(extracted_data)
-        print("✅ Data Stored Successfully, ID:", result.inserted_id)
+        # Check if user already exists
+        existing_user = db.webhooks.find_one({"nexa_id": extracted_data["nexa_id"]})
+        if existing_user:
+            # Append new data instead of overwriting
+            db.webhooks.update_one(
+                {"nexa_id": extracted_data["nexa_id"]},
+                {"$set": {"profession": extracted_data["profession"], "goal_context": extracted_data["goal_context"]},
+                 "$push": {"meeting_history": {"date": extracted_data["meeting_date"], "time": extracted_data["meeting_time"]}}}
+            )
+            print("✅ User data updated!")
+        else:
+            # Insert new user profile
+            extracted_data["meeting_history"] = [{"date": extracted_data["meeting_date"], "time": extracted_data["meeting_time"]}]
+            result = db.webhooks.insert_one(extracted_data)
+            print("✅ New user data stored, ID:", result.inserted_id)
 
-        return jsonify({"message": "Data stored successfully", "id": str(result.inserted_id)}), 200
+        # Perform real-time search for relevant matches
+        match_response = find_match(extracted_data["goal_context"])
+
+        return jsonify({"message": "Data stored successfully", "match": match_response}), 200
 
     except Exception as e:
         print("❌ Error Processing Webhook:", str(e))
