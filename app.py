@@ -52,6 +52,7 @@ def get_users():
         print("Error:", str(e))
         return jsonify({"error": "Failed to fetch users"}), 500
 
+# Webhook for VAPI
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
     try:
@@ -67,28 +68,23 @@ def vapi_webhook():
         artifact = message.get("artifact", {})
         messages = artifact.get("messages", [])
 
-        # Initialize variables
-        meeting_date = None
-        meeting_time = None
-
+        # Extract and format meeting date and time
+        meeting_date = "Not Provided"
+        meeting_time = "Not Provided"
         for msg in messages:
             text = msg.get("message", "")
+            date_match = re.search(r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{1,2}),\s(\d{4})\b', text)
+            time_match = re.search(r'\b(\d{1,2}):(\d{2})\s?(AM|PM)\b', text, re.IGNORECASE)
+            
+            if date_match:
+                month, day, year = date_match.groups()
+                month_number = datetime.strptime(month, "%B").month  # Convert month name to number
+                meeting_date = f"{int(day):02d}-{int(month_number):02d}-{year}"
+            
+            if time_match:
+                hour, minute, am_pm = time_match.groups()
+                meeting_time = f"{hour}:{minute} {am_pm.upper()}"
 
-            # ✅ Extract Date and Time from Message
-            date_time_match = re.search(
-                r'(\b\d{1,2}\b)\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s*(\d{4})\s*at\s*(\d{1,2}):(\d{2})\s*(AM|PM)',
-                text, re.IGNORECASE
-            )
-
-            if date_time_match:
-                day, month_name, year, hour, minute, am_pm = date_time_match.groups()
-                
-                # Convert to required formats
-                month_number = datetime.strptime(month_name, "%B").month  # Convert month name to number
-                meeting_date = f"{int(day):02d}-{int(month_number):02d}-{year}"  # Format: DD-MM-YYYY
-                meeting_time = f"{hour}:{minute} {am_pm.upper()}"  # Format: HH:MM AM/PM
-
-        # Store extracted data
         extracted_data = {
             "user_name": message.get("user_name", "Unknown"),
             "phone": message.get("phone", ""),
@@ -97,8 +93,8 @@ def vapi_webhook():
             "profession": message.get("profession", ""),
             "goal_context": analysis.get("summary", ""),
             "connection_type": message.get("connection_type", ""),
-            "meeting_date": meeting_date if meeting_date else "Not Provided",
-            "meeting_time": meeting_time if meeting_time else "Not Provided",
+            "meeting_date": meeting_date,
+            "meeting_time": meeting_time,
             "requested_to": message.get("requested_to", "Rahul8906"),
             "context": "Vapi Webhook Data Processing"
         }
