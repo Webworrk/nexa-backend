@@ -39,34 +39,21 @@ from flask import request
 
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
-    data = request.json
+    try:
+        # Parse incoming JSON data
+        data = request.json
+        print("Received data:", data)  # Debug log
 
-    # Map and rename fields for MongoDB compatibility
-    if 'user_name' in data:
-        data['name'] = data.pop('user_name')  # Rename user_name to name
-    
-    if 'goal_context' in data:
-        if 'networking_goals' not in data:
-            data['networking_goals'] = []  # Ensure the field exists
-        data['networking_goals'].append({"goal": data.pop('goal_context'), "date": "2025-01-27"})  # Map goal_context into networking_goals
-    
-    # Optional: Check and create other fields if not present
-    if 'connection_type' not in data:
-        data['connection_type'] = None  # Default value if missing
+        # Insert data into MongoDB
+        result = collection.insert_one(data)
+        print("Inserted ID:", result.inserted_id)  # Debug log
 
-    if 'meeting_time' not in data:
-        data['meeting_time'] = None  # Default value if missing
-    
-    if 'requested_to' not in data:
-        data['requested_to'] = None  # Default value if missing
+        # Return success response
+        return jsonify({"message": "Data stored successfully", "id": str(result.inserted_id)}), 200
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": "Failed to store data"}), 500
 
-    if 'context' not in data:
-        data['context'] = None  # Default value if missing
-
-    # Save the updated data to MongoDB
-    db['Users'].insert_one(data)
-
-    print("Vapi Data:", data)  # Debugging log
-    return jsonify({"message": "Data received successfully!"}), 200
-
+if __name__ == '__main__':
+    app.run(debug=True)
 
