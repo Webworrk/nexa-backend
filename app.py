@@ -49,23 +49,23 @@ def get_users():
         print("Error:", str(e))
         return jsonify({"error": "Failed to fetch users"}), 500
 
-# VAPI webhook endpoint
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
     try:
-        # Parse incoming JSON data
-        data = request.json
-        print("Received data:", data)  # Debug log
+        data = request.json  # Get the incoming request data
+        print("📩 Received Webhook Data:", data)  # Debug log
+        
+        if not data:  # Check if data is empty
+            print("❌ No data received!")
+            return jsonify({"error": "No data received"}), 400
 
-        # Insert data into `webhooks` collection
-        result = db['webhooks'].insert_one(data)
-        print("Inserted ID:", result.inserted_id)  # Debug log
+        # Store data in MongoDB
+        result = db.webhooks.insert_one(data)
+        print("✅ Data Stored Successfully, ID:", result.inserted_id)
 
-        # Return success response
         return jsonify({"message": "Data stored successfully", "id": str(result.inserted_id)}), 200
+    
     except Exception as e:
-        print("Error:", str(e))
-        return jsonify({"error": "Failed to store data"}), 500
+        print("❌ Error Receiving Webhook:", str(e))
+        return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
