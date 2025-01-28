@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import os
 import traceback
+import re
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -66,19 +68,30 @@ def vapi_webhook():
         artifact = message.get("artifact", {})
         messages = artifact.get("messages", [])
 
-        # Extract meeting time (e.g., "4 PM", "10:30 AM")
+        # Extract meeting time and date
         meeting_time = None
+        meeting_date = None
         for msg in messages:
             text = msg.get("message", "")
-            if any(t in text for t in ["AM", "PM"]):
-                meeting_time = text
-                break
+            date_match = re.search(r'\b(\d{2})[-/](\d{2})[-/](\d{4})\b', text)
+            time_match = re.search(r'\b(\d{1,2}):(\d{2})\s?(AM|PM)\b', text, re.IGNORECASE)
+            
+            if date_match:
+                meeting_date = f"{date_match.group(2)}-{date_match.group(1)}-{date_match.group(3)}"  # Format: DD-MM-YYYY
+            if time_match:
+                meeting_time = f"{time_match.group(1)}:{time_match.group(2)} {time_match.group(3).upper()}"  # Format: HH:MM AM/PM
 
         extracted_data = {
-            "summary": analysis.get("summary"),
-            "success_evaluation": analysis.get("success_evaluation"),
+            "user_name": message.get("user_name", "Unknown"),
+            "phone": message.get("phone", ""),
+            "email": message.get("email", ""),
+            "nexa_id": message.get("nexa_id", ""),
+            "profession": message.get("profession", ""),
+            "goal_context": analysis.get("summary", ""),
+            "connection_type": message.get("connection_type", ""),
+            "meeting_date": meeting_date,
             "meeting_time": meeting_time,
-            "requested_to": message.get("requested_to", "Rahul8906"),  # Dynamic or default
+            "requested_to": message.get("requested_to", "Rahul8906"),
             "context": "Vapi Webhook Data Processing"
         }
 
