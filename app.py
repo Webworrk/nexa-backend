@@ -52,7 +52,6 @@ def get_users():
         print("Error:", str(e))
         return jsonify({"error": "Failed to fetch users"}), 500
 
-# Webhook for VAPI
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
     try:
@@ -73,13 +72,15 @@ def vapi_webhook():
         meeting_time = None
         for msg in messages:
             text = msg.get("message", "")
-            date_match = re.search(r'\b(\d{1,2})[a-z]{2}\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})\b', text)
+
+            # Extract Date (e.g., "January 29th 2025")
+            date_match = re.search(r'\b(\d{1,2})(?:st|nd|rd|th)?\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})\b', text, re.IGNORECASE)
             time_match = re.search(r'\b(\d{1,2}):(\d{2})\s?(AM|PM)\b', text, re.IGNORECASE)
-            
+
             if date_match:
-                day, month, year = date_match.groups()
-                month_number = datetime.strptime(month, "%B").month  # Convert month name to number
-                meeting_date = f"{int(day):02d}-{int(month_number):02d}-{year}"
+                day, month_name, year = date_match.groups()
+                month_number = datetime.strptime(month_name, "%B").month  # Convert month name to number
+                meeting_date = f"{int(day):02d}-{int(month_number):02d}-{year}"  # Convert to DD-MM-YYYY format
             
             if time_match:
                 hour, minute, am_pm = time_match.groups()
