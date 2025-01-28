@@ -20,38 +20,6 @@ except Exception as e:
 def home():
     return jsonify({"message": "Welcome to Nexa Backend!"})
 
-# Add a user
-@app.route('/add_user', methods=['POST'])
-def add_user():
-    try:
-        data = request.json
-        result = db['users'].insert_one(data)
-        return jsonify({"message": "User added successfully!", "id": str(result.inserted_id)}), 201
-    except Exception as e:
-        print("Error:", str(e))
-        return jsonify({"error": "Failed to add user"}), 500
-
-# Add a connection request
-@app.route('/add_connection_request', methods=['POST'])
-def add_connection_request():
-    try:
-        data = request.json
-        result = db['connection_requests'].insert_one(data)
-        return jsonify({"message": "Connection request added successfully!", "id": str(result.inserted_id)}), 201
-    except Exception as e:
-        print("Error:", str(e))
-        return jsonify({"error": "Failed to add connection request"}), 500
-
-# Fetch all users
-@app.route('/get_users', methods=['GET'])
-def get_users():
-    try:
-        users = list(db['users'].find({}, {'_id': 0}))  # Exclude MongoDB's `_id` field
-        return jsonify(users), 200
-    except Exception as e:
-        print("Error:", str(e))
-        return jsonify({"error": "Failed to fetch users"}), 500
-
 # Webhook for VAPI
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
@@ -86,16 +54,28 @@ def vapi_webhook():
                 meeting_time = f"{hour}:{minute} {am_pm.upper()}"
 
         extracted_data = {
+            "nexa_id": message.get("nexa_id", "Unknown"),
             "user_name": message.get("user_name", "Unknown"),
             "phone": message.get("phone", ""),
             "email": message.get("email", ""),
-            "nexa_id": message.get("nexa_id", ""),
-            "profession": message.get("profession", ""),
-            "goal_context": analysis.get("summary", ""),
-            "connection_type": message.get("connection_type", ""),
-            "meeting_date": meeting_date,
-            "meeting_time": meeting_time,
-            "requested_to": message.get("requested_to") if "requested_to" in message else "Unknown",
+            "profession_summary": {
+                "industry": message.get("industry", ""),
+                "experience": message.get("experience", ""),
+                "skills": message.get("skills", []),
+                "bio": message.get("profession", "")
+            },
+            "networking_goals": [{
+                "goal": analysis.get("summary", ""),
+                "status": "Active",
+                "created_at": datetime.now().strftime("%d-%m-%Y"),
+                "closed_at": None
+            }],
+            "meeting_history": [{
+                "date": meeting_date,
+                "time": meeting_time,
+                "context": "Vapi Webhook Data Processing"
+            }],
+            "requested_to": message.get("requested_to", "Not Provided"),
             "context": "Vapi Webhook Data Processing"
         }
 
@@ -104,16 +84,18 @@ def vapi_webhook():
         # Check if user already exists
         existing_user = db.webhooks.find_one({"nexa_id": extracted_data["nexa_id"]})
         if existing_user:
-            # Append new data instead of overwriting
+            # Append new networking goal
             db.webhooks.update_one(
                 {"nexa_id": extracted_data["nexa_id"]},
-                {"$set": {"profession": extracted_data["profession"], "goal_context": extracted_data["goal_context"]},
-                 "$push": {"meeting_history": {"date": extracted_data["meeting_date"], "time": extracted_data["meeting_time"]}}}
+                {"$set": {"profession_summary": extracted_data["profession_summary"]},
+                 "$push": {
+                     "networking_goals": extracted_data["networking_goals"][0],
+                     "meeting_history": extracted_data["meeting_history"][0]
+                 }}
             )
             print("✅ User data updated!")
         else:
             # Insert new user profile
-            extracted_data["meeting_history"] = [{"date": extracted_data["meeting_date"], "time": extracted_data["meeting_time"]}]
             result = db.webhooks.insert_one(extracted_data)
             print("✅ New user data stored, ID:", result.inserted_id)
 
