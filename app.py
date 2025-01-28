@@ -52,20 +52,33 @@ def get_users():
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
     try:
-        data = request.json  # Get the incoming request data
-        print("📩 Received Webhook Data:", data)  # Debug log
-        
-        if not data:  # Check if data is empty
+        data = request.json  # Get the incoming JSON
+
+        if not data:
             print("❌ No data received!")
             return jsonify({"error": "No data received"}), 400
 
-        # Store data in MongoDB
-        result = db.webhooks.insert_one(data)
+        # 📌 Extract important fields from nested JSON
+        extracted_data = {
+            "summary": data.get("message", {}).get("analysis", {}).get("summary"),
+            "success_evaluation": data.get("message", {}).get("analysis", {}).get("success_evaluation"),
+            "meeting_time": data.get("message", {}).get("artifact", {}).get("messages", [{}])[-1].get("message"),
+            "requested_to": "Rahul8906",  # Replace with dynamic extraction if needed
+            "context": "Vapi Webhook Data Processing"
+        }
+
+        print("📌 Extracted Data:", extracted_data)
+
+        # ✅ Insert data into MongoDB
+        result = db.webhooks.insert_one(extracted_data)
         print("✅ Data Stored Successfully, ID:", result.inserted_id)
 
         return jsonify({"message": "Data stored successfully", "id": str(result.inserted_id)}), 200
-    
+
     except Exception as e:
-        print("❌ Error Receiving Webhook:", str(e))
+        print("❌ Error Processing Webhook:", str(e))
+        print(traceback.format_exc())  # Logs full traceback for debugging
         return jsonify({"error": str(e)}), 500
 
+if __name__ == '__main__':
+    app.run(debug=True)
