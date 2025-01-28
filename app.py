@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import os
+import traceback
 
 app = Flask(__name__)
 
@@ -49,6 +50,7 @@ def get_users():
         print("Error:", str(e))
         return jsonify({"error": "Failed to fetch users"}), 500
 
+# Webhook for VAPI
 @app.route('/vapi-webhook', methods=['POST'])
 def vapi_webhook():
     try:
@@ -58,18 +60,31 @@ def vapi_webhook():
             print("❌ No data received!")
             return jsonify({"error": "No data received"}), 400
 
-        # 📌 Extract important fields from nested JSON
+        # Extract important fields from nested JSON
+        message = data.get("message", {})
+        analysis = message.get("analysis", {})
+        artifact = message.get("artifact", {})
+        messages = artifact.get("messages", [])
+
+        # Extract meeting time (e.g., "4 PM", "10:30 AM")
+        meeting_time = None
+        for msg in messages:
+            text = msg.get("message", "")
+            if any(t in text for t in ["AM", "PM"]):
+                meeting_time = text
+                break
+
         extracted_data = {
-            "summary": data.get("message", {}).get("analysis", {}).get("summary"),
-            "success_evaluation": data.get("message", {}).get("analysis", {}).get("success_evaluation"),
-            "meeting_time": data.get("message", {}).get("artifact", {}).get("messages", [{}])[-1].get("message"),
-            "requested_to": "Rahul8906",  # Replace with dynamic extraction if needed
+            "summary": analysis.get("summary"),
+            "success_evaluation": analysis.get("success_evaluation"),
+            "meeting_time": meeting_time,
+            "requested_to": message.get("requested_to", "Rahul8906"),  # Dynamic or default
             "context": "Vapi Webhook Data Processing"
         }
 
         print("📌 Extracted Data:", extracted_data)
 
-        # ✅ Insert data into MongoDB
+        # Insert data into MongoDB
         result = db.webhooks.insert_one(extracted_data)
         print("✅ Data Stored Successfully, ID:", result.inserted_id)
 
